@@ -14,7 +14,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// $Id: CutyCapt.cpp,v 1.2 2008/06/07 22:12:06 hoehrmann Exp $
+// $Id$
 //
 ////////////////////////////////////////////////////////////////////
 
