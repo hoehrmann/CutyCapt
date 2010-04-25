@@ -2,7 +2,7 @@
 //
 // CutyCapt - A Qt WebKit Web Page Rendering Capture Utility
 //
-// Copyright (C) 2003-2008 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+// Copyright (C) 2003-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -245,6 +245,7 @@ CaptHelp(void) {
     "  --out-format=<f>               Like extension in --out, overrides heuristic \n"
 //  "  --out-quality=<int>            Output format quality from 1 to 100          \n"
     "  --min-width=<int>              Minimal width for the image (default: 800)   \n"
+    "  --min-height=<int>             Minimal height for the image (default: 600)  \n"
     "  --max-wait=<ms>                Don't wait more than (default: 90000, inf: 0)\n"
     "  --delay=<ms>                   After successful load, wait (default: 0)     \n"
     "  --user-styles=<url>            Location of user style sheet, if any         \n"
@@ -264,10 +265,13 @@ CaptHelp(void) {
     "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
     "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
+#if QT_VERSION >= 0x040500
+    "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
+#endif
     " -----------------------------------------------------------------------------\n"
     "  <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm    \n"
     " -----------------------------------------------------------------------------\n"
-    " http://cutycapt.sf.net - (c) 2003-2008 Bjoern Hoehrmann - bjoern@hoehrmann.de\n"
+    " http://cutycapt.sf.net - (c) 2003-2010 Bjoern Hoehrmann - bjoern@hoehrmann.de\n"
     "");
 }
 
@@ -278,7 +282,7 @@ main(int argc, char *argv[]) {
   int argDelay = 0;
   int argSilent = 0;
   int argMinWidth = 800;
-  int argDefHeight = 600;
+  int argMinHeight = 600;
   int argMaxWait = 90000;
   int argVerbosity = 0;
 
@@ -336,6 +340,10 @@ main(int argc, char *argv[]) {
       // TODO: add error checking here?
       argMinWidth = (unsigned int)atoi(value);
 
+    } else if (strncmp("--min-height", s, nlen) == 0) {
+      // TODO: add error checking here?
+      argMinHeight = (unsigned int)atoi(value);
+
     } else if (strncmp("--delay", s, nlen) == 0) {
       // TODO: see above
       argDelay = (unsigned int)atoi(value);
@@ -384,6 +392,11 @@ main(int argc, char *argv[]) {
 
     } else if (strncmp("--links-included-in-focus-chain", s, nlen) == 0) {
       page.setAttribute(QWebSettings::LinksIncludedInFocusChain, value);
+
+#if QT_VERSION >= 0x040500
+    } else if (strncmp("--print-backgrounds", s, nlen) == 0) {
+      page.setAttribute(QWebSettings::PrintElementBackgrounds, value);
+#endif
 
     } else if (strncmp("--app-name", s, nlen) == 0) {
       app.setApplicationName(value);
@@ -445,7 +458,9 @@ main(int argc, char *argv[]) {
       return EXIT_FAILURE;
   }
 
-  req.setUrl( QUrl(argUrl) );
+  // This used to use QUrl(argUrl) but that escapes %hh sequences
+  // even though it should not, as URLs can assumed to be escaped.
+  req.setUrl( QUrl::fromEncoded(argUrl) );
 
   CutyCapt main(&page, argOut, argDelay, format);
 
@@ -466,7 +481,7 @@ main(int argc, char *argv[]) {
 
   if (argUserStyle != NULL)
     // TODO: does this need any syntax checking?
-    page.settings()->setUserStyleSheetUrl( QUrl(argUserStyle) );
+    page.settings()->setUserStyleSheetUrl( QUrl::fromEncoded(argUserStyle) );
 
   if (argIconDbPath != NULL)
     // TODO: does this need any syntax checking?
@@ -478,7 +493,7 @@ main(int argc, char *argv[]) {
   // is not currently possible (Qt 4.4.0) as far as I can tell.
   page.mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
   page.mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
-  page.setViewportSize( QSize(argMinWidth, argDefHeight) );
+  page.setViewportSize( QSize(argMinWidth, argMinHeight) );
 
   if (!body.isNull())
     page.mainFrame()->load(req, method, body);
