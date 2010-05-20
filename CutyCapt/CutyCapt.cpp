@@ -267,6 +267,9 @@ CaptHelp(void) {
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
 #if QT_VERSION >= 0x040500
     "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
+    "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
+    "  --zoom-text-only=<on|off>      Whether to zoom only the text (default: off) \n"
+    "  --http-proxy=<url>             Address for HTTP proxy server (default: none)\n"
 #endif
     " -----------------------------------------------------------------------------\n"
     "  <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm    \n"
@@ -300,6 +303,7 @@ main(int argc, char *argv[]) {
     QNetworkAccessManager::GetOperation;
   QByteArray body;
   QNetworkRequest req;
+  QNetworkAccessManager manager;
 
   // Parse command line parameters
   for (int ax = 1; ax < argc; ++ax) {
@@ -396,6 +400,19 @@ main(int argc, char *argv[]) {
 #if QT_VERSION >= 0x040500
     } else if (strncmp("--print-backgrounds", s, nlen) == 0) {
       page.setAttribute(QWebSettings::PrintElementBackgrounds, value);
+
+    } else if (strncmp("--zoom-factor", s, nlen) == 0) {
+      page.mainFrame()->setZoomFactor(QString(value).toFloat());
+
+    } else if (strncmp("--zoom-text-only", s, nlen) == 0) {
+      page.setAttribute(QWebSettings::ZoomTextOnly, value);
+
+    } else if (strncmp("--http-proxy", s, nlen) == 0) {
+      QUrl p = QUrl::fromEncoded(value);
+      QNetworkProxy proxy = QNetworkProxy(QNetworkProxy::HttpProxy,
+        p.host(), p.port(80), p.userName(), p.password());
+      manager.setProxy(proxy);
+      page.setNetworkAccessManager(&manager);
 #endif
 
     } else if (strncmp("--app-name", s, nlen) == 0) {
