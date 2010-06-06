@@ -248,7 +248,9 @@ CaptHelp(void) {
     "  --min-height=<int>             Minimal height for the image (default: 600)  \n"
     "  --max-wait=<ms>                Don't wait more than (default: 90000, inf: 0)\n"
     "  --delay=<ms>                   After successful load, wait (default: 0)     \n"
-    "  --user-styles=<url>            Location of user style sheet, if any         \n"
+//  "  --user-styles=<url>            Location of user style sheet (deprecated)    \n"
+    "  --user-style-path=<path>       Location of user style sheet file, if any    \n"
+    "  --user-style-string=<css>      User style rules specified as text           \n"
     "  --header=<name>:<value>        request header; repeatable; some can't be set\n"
     "  --method=<get|post|put>        Specifies the request method (default: get)  \n"
     "  --body-string=<string>         Unencoded request body (default: none)       \n"
@@ -291,6 +293,8 @@ main(int argc, char *argv[]) {
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
+  const char* argUserStylePath = NULL;
+  const char* argUserStyleString = NULL;
   const char* argIconDbPath = NULL;
   QString argOut;
 
@@ -365,7 +369,14 @@ main(int argc, char *argv[]) {
             format = CutyExtMap[ix].id; //, break;
 
     } else if (strncmp("--user-styles", s, nlen) == 0) {
+      // This option is provided for backwards-compatibility only
       argUserStyle = value;
+
+    } else if (strncmp("--user-style-path", s, nlen) == 0) {
+      argUserStylePath = value;
+
+    } else if (strncmp("--user-style-string", s, nlen) == 0) {
+      argUserStyleString = value;
 
     } else if (strncmp("--icon-database-path", s, nlen) == 0) {
       argIconDbPath = value;
@@ -499,6 +510,16 @@ main(int argc, char *argv[]) {
   if (argUserStyle != NULL)
     // TODO: does this need any syntax checking?
     page.settings()->setUserStyleSheetUrl( QUrl::fromEncoded(argUserStyle) );
+
+  if (argUserStylePath != NULL) {
+    page.settings()->setUserStyleSheetUrl( QUrl::fromLocalFile(argUserStylePath) );
+  }
+
+  if (argUserStyleString != NULL) {
+    QUrl data("data:text/css;charset=utf-8;base64," +
+      QByteArray(argUserStyleString).toBase64());
+    page.settings()->setUserStyleSheetUrl( data );
+  }
 
   if (argIconDbPath != NULL)
     // TODO: does this need any syntax checking?
