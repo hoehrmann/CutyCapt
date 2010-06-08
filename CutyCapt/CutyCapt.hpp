@@ -1,11 +1,16 @@
 #include <QtWebKit>
 
+class CutyCapt;
 class CutyPage : public QWebPage {
   Q_OBJECT
 
 public:
   void setAttribute(QWebSettings::WebAttribute option, const QString& value);
   void setUserAgent(const QString& userAgent);
+  void setAlertString(const QString& alertString);
+  void setPrintAlerts(bool printAlerts);
+  void setCutyCapt(CutyCapt* cutyCapt);
+  QString getAlertString();
 
 protected:
   QString chooseFile(QWebFrame *frame, const QString& suggestedFile);
@@ -15,6 +20,9 @@ protected:
   bool javaScriptConfirm(QWebFrame* frame, const QString& msg);
   QString userAgentForUrl(const QUrl& url) const;
   QString mUserAgent;
+  QString mAlertString;
+  bool mPrintAlerts;
+  CutyCapt* mCutyCapt;
 };
 
 class CutyCapt : public QObject {
@@ -27,11 +35,17 @@ public:
     RenderTreeFormat, PngFormat, JpegFormat, MngFormat, TiffFormat, GifFormat,
     BmpFormat, PpmFormat, XbmFormat, XpmFormat, OtherFormat };
 
-  CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format);
+  CutyCapt(CutyPage* page,
+           const QString& output,
+           int delay,
+           OutputFormat format,
+           const QString& scriptProp,
+           const QString& scriptCode);
 
 private slots:
   void DocumentComplete(bool ok);
   void InitialLayoutCompleted();
+  void JavaScriptWindowObjectCleared();
   void Timeout();
   void Delayed();
 
@@ -46,6 +60,7 @@ protected:
   int          mDelay;
   CutyPage*    mPage;
   OutputFormat mFormat;
-
+  QObject*     mScriptObj;
+  QString      mScriptProp;
+  QString      mScriptCode;
 };
-

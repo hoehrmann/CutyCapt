@@ -28,6 +28,10 @@
 #include <QNetworkRequest>
 #include "CutyCapt.hpp"
 
+#if QT_VERSION >= 0x040600 && 0
+#define CUTYCAPT_SCRIPT 1
+#endif
+
 #ifdef STATIC_PLUGINS
   Q_IMPORT_PLUGIN(qjpeg)
   Q_IMPORT_PLUGIN(qgif)
@@ -86,11 +90,15 @@ CutyPage::javaScriptConsoleMessage(const QString& /*message*/,
 }
 
 void
-CutyPage::javaScriptAlert(QWebFrame* /*frame*/, const QString& /*msg*/) {
-  // noop
+CutyPage::javaScriptAlert(QWebFrame* /*frame*/, const QString& msg) {
+
+  if (mPrintAlerts)
+    qDebug() << "[alert]" << msg;
+
+  if (mAlertString == msg) {
+    QTimer::singleShot(10, mCutyCapt, SLOT(Delayed()));
+  }
 }
-
-
 
 QString
 CutyPage::userAgentForUrl(const QUrl& url) const {
@@ -107,6 +115,26 @@ CutyPage::setUserAgent(const QString& userAgent) {
 }
 
 void
+CutyPage::setAlertString(const QString& alertString) {
+  mAlertString = alertString;
+}
+
+QString
+CutyPage::getAlertString() {
+  return mAlertString;
+}
+
+void
+CutyPage::setCutyCapt(CutyCapt* cutyCapt) {
+  mCutyCapt = cutyCapt;
+}
+
+void
+CutyPage::setPrintAlerts(bool printAlerts) {
+  mPrintAlerts = printAlerts;
+}
+
+void
 CutyPage::setAttribute(QWebSettings::WebAttribute option,
                        const QString& value) {
 
@@ -120,13 +148,21 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 // TODO: Consider merging some of main() and CutyCap
 
-CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format) {
+CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
+                   const QString& scriptProp, const QString& scriptCode) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
+  mScriptProp = scriptProp;
+  mScriptCode = scriptCode;
+  mScriptObj = new QObject();
+
+  // This is not really nice, but some restructuring work is
+  // needed anyway, so this should not be that bad for now.
+  mPage->setCutyCapt(this);
 }
 
 void
@@ -146,7 +182,27 @@ CutyCapt::DocumentComplete(bool /*ok*/) {
 }
 
 void
+CutyCapt::JavaScriptWindowObjectCleared() {
+
+  if (!mScriptProp.isEmpty()) {
+    QVariant var = mPage->mainFrame()->evaluateJavaScript(mScriptProp);
+    QObject* obj = var.value<QObject*>();
+
+    if (obj == mScriptObj)
+      return;
+
+    mPage->mainFrame()->addToJavaScriptWindowObject(mScriptProp, mScriptObj);
+  }
+
+  mPage->mainFrame()->evaluateJavaScript(mScriptCode);
+
+}
+
+void
 CutyCapt::TryDelayedRender() {
+
+  if (!mPage->getAlertString().isEmpty())
+    return;
 
   if (mDelay > 0) {
     QTimer::singleShot(mDelay, this, SLOT(Delayed()));
@@ -258,8 +314,6 @@ CaptHelp(void) {
     "  --app-name=<name>              appName used in User-Agent; default is none  \n"
     "  --app-version=<version>        appVers used in User-Agent; default is none  \n"
     "  --user-agent=<string>          Override the User-Agent header Qt would set  \n"
-// The --wait-for-alert functionality could also be offered by passing a QObject to js
-//  "  --wait-for-alert=<string>      Capture and exit on script alert('string')   \n"
     "  --javascript=<on|off>          JavaScript execution (default: on)           \n"
     "  --java=<on|off>                Java execution (default: unknown)            \n"
     "  --plugins=<on|off>             Plugin execution (default: unknown)          \n"
@@ -273,9 +327,26 @@ CaptHelp(void) {
     "  --zoom-text-only=<on|off>      Whether to zoom only the text (default: off) \n"
     "  --http-proxy=<url>             Address for HTTP proxy server (default: none)\n"
 #endif
+#if CUTYCAPT_SCRIPT
+    "  --inject-script=<path>         JavaScript that will be injected into pages  \n"
+    "  --script-object=<string>       Property to hold state for injected script   \n"
+    "  --expect-alert=<string>        Try waiting for alert(string) before capture \n"
+    "  --debug-print-alerts           Prints out alert(...) strings for debugging. \n"
+#endif
     " -----------------------------------------------------------------------------\n"
     "  <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm    \n"
     " -----------------------------------------------------------------------------\n"
+#if CUTYCAPT_SCRIPT
+    " The `inject-script` option can be used to inject script code into loaded web \n"
+    " pages. The code is called whenever the `javaScriptWindowObjectCleared` signal\n"
+    " is received. When `script-object` is set, an object under the specified name \n"
+    " will be available to the script to maintain state across page loads. When the\n"
+    " `expect-alert` option is specified, the shot will be taken when a script in- \n"
+    " vokes alert(string) with the string if that happens before `max-wait`. These \n"
+    " options effectively allow you to remote control the browser and the web page.\n"
+    " This an experimental and easily abused and misused feature. Use with caution.\n"
+    " -----------------------------------------------------------------------------\n"
+#endif
     " http://cutycapt.sf.net - (c) 2003-2010 Bjoern Hoehrmann - bjoern@hoehrmann.de\n"
     "");
 }
@@ -290,12 +361,14 @@ main(int argc, char *argv[]) {
   int argMinHeight = 600;
   int argMaxWait = 90000;
   int argVerbosity = 0;
-
+  
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
   const char* argUserStylePath = NULL;
   const char* argUserStyleString = NULL;
   const char* argIconDbPath = NULL;
+  const char* argInjectScript = NULL;
+  const char* argScriptObject = NULL;
   QString argOut;
 
   CutyCapt::OutputFormat format = CutyCapt::OtherFormat;
@@ -328,6 +401,12 @@ main(int argc, char *argv[]) {
     } else if (strcmp("--verbose", s) == 0) {
       argVerbosity++;
       continue;
+
+#if CUTYCAPT_SCRIPT
+    } else if (strcmp("--debug-print-alerts", s) == 0) {
+      page.setPrintAlerts(true);
+      continue;
+#endif
     } 
 
     value = strchr(s, '=');
@@ -426,6 +505,17 @@ main(int argc, char *argv[]) {
       page.setNetworkAccessManager(&manager);
 #endif
 
+#if CUTYCAPT_SCRIPT
+    } else if (strncmp("--inject-script", s, nlen) == 0) {
+      argInjectScript = value;
+
+    } else if (strncmp("--script-object", s, nlen) == 0) {
+      argScriptObject = value;
+
+    } else if (strncmp("--expect-alert", s, nlen) == 0) {
+      page.setAlertString(value);
+#endif
+
     } else if (strncmp("--app-name", s, nlen) == 0) {
       app.setApplicationName(value);
 
@@ -490,7 +580,21 @@ main(int argc, char *argv[]) {
   // even though it should not, as URLs can assumed to be escaped.
   req.setUrl( QUrl::fromEncoded(argUrl) );
 
-  CutyCapt main(&page, argOut, argDelay, format);
+  QString scriptProp(argScriptObject);
+  QString scriptCode;
+
+  if (argInjectScript) {
+    QFile file(argInjectScript);
+    if (file.open(QIODevice::ReadOnly)) {
+      QTextStream stream(&file);
+      stream.setCodec(QTextCodec::codecForName("UTF-8"));
+      stream.setAutoDetectUnicode(true);
+      scriptCode = stream.readAll();
+      file.close();
+    }
+  }
+
+  CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode);
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),
@@ -532,6 +636,17 @@ main(int argc, char *argv[]) {
   page.mainFrame()->setScrollBarPolicy(Qt::Horizontal, Qt::ScrollBarAlwaysOff);
   page.mainFrame()->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
   page.setViewportSize( QSize(argMinWidth, argMinHeight) );
+
+#if CUTYCAPT_SCRIPT
+  // javaScriptWindowObjectCleared does not get called on the
+  // initial load unless some JavaScript has been executed.
+  page.mainFrame()->evaluateJavaScript(QString(""));
+
+  app.connect(page.mainFrame(),
+    SIGNAL(javaScriptWindowObjectCleared()),
+    &main,
+    SLOT(JavaScriptWindowObjectCleared()));
+#endif
 
   if (!body.isNull())
     page.mainFrame()->load(req, method, body);
