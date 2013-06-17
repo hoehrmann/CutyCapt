@@ -1,5 +1,9 @@
 #include <QtWebKit>
 
+#if QT_VERSION >= 0x050000
+#include <QtWebKitWidgets>
+#endif
+
 class CutyCapt;
 class CutyPage : public QWebPage {
   Q_OBJECT

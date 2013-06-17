@@ -2,7 +2,7 @@
 //
 // CutyCapt - A Qt WebKit Web Page Rendering Capture Utility
 //
-// Copyright (C) 2003-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+// Copyright (C) 2003-2013 Bjoern Hoehrmann <bjoern@hoehrmann.de>
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -27,7 +27,11 @@
 #include <QtWebKit>
 #include <QtGui>
 #include <QSvgGenerator>
+
+#if QT_VERSION < 0x050000
 #include <QPrinter>
+#endif
+
 #include <QTimer>
 #include <QByteArray>
 #include <QNetworkRequest>
@@ -56,7 +60,9 @@ static struct _CutyExtMap {
   { CutyCapt::PsFormat,          ".ps",         "ps"    },
   { CutyCapt::InnerTextFormat,   ".txt",        "itext" },
   { CutyCapt::HtmlFormat,        ".html",       "html"  },
+#if QT_VERSION < 0x050000
   { CutyCapt::RenderTreeFormat,  ".rtree",      "rtree" },
+#endif
   { CutyCapt::JpegFormat,        ".jpeg",       "jpeg"  },
   { CutyCapt::PngFormat,         ".png",        "png"   },
   { CutyCapt::MngFormat,         ".mng",        "mng"   },
@@ -270,15 +276,23 @@ CutyCapt::saveSnapshot() {
       mainFrame->print(&printer);
       break;
     }
+#if QT_VERSION < 0x050000
     case RenderTreeFormat:
+      QFile file(mOutput);
+      file.open(QIODevice::WriteOnly | QIODevice::Text);
+      QTextStream s(&file);
+      s.setCodec("utf-8");
+      s << mainFrame->renderTreeDump();
+      break;
+    }
+#endif
     case InnerTextFormat:
     case HtmlFormat: {
       QFile file(mOutput);
       file.open(QIODevice::WriteOnly | QIODevice::Text);
       QTextStream s(&file);
       s.setCodec("utf-8");
-      s << (mFormat == RenderTreeFormat ? mainFrame->renderTreeDump() :
-            mFormat == InnerTextFormat  ? mainFrame->toPlainText() :
+      s << (mFormat == InnerTextFormat  ? mainFrame->toPlainText() :
             mFormat == HtmlFormat       ? mainFrame->toHtml() :
             "bug");
       break;
@@ -352,7 +366,7 @@ CaptHelp(void) {
     " This an experimental and easily abused and misused feature. Use with caution.\n"
     " -----------------------------------------------------------------------------\n"
 #endif
-    " http://cutycapt.sf.net - (c) 2003-2010 Bjoern Hoehrmann - bjoern@hoehrmann.de\n"
+    " http://cutycapt.sf.net - (c) 2003-2013 Bjoern Hoehrmann - bjoern@hoehrmann.de\n"
     "");
 }
 
