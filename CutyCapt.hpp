@@ -44,7 +44,8 @@ public:
            int delay,
            OutputFormat format,
            const QString& scriptProp,
-           const QString& scriptCode);
+           const QString& scriptCode,
+           bool insecure);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -52,6 +53,7 @@ private slots:
   void JavaScriptWindowObjectCleared();
   void Timeout();
   void Delayed();
+  void handleSslErrors(QNetworkReply* reply, QList<QSslError> errors);
 
 private:
   void TryDelayedRender();
@@ -67,4 +69,5 @@ protected:
   QObject*     mScriptObj;
   QString      mScriptProp;
   QString      mScriptCode;
+  bool         mInsecure;
 };
