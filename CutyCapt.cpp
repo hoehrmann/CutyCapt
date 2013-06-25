@@ -35,6 +35,7 @@
 #include <QTimer>
 #include <QByteArray>
 #include <QNetworkRequest>
+#include <QNetworkProxy>
 #include "CutyCapt.hpp"
 
 #if QT_VERSION >= 0x040600 && 0
@@ -287,7 +288,7 @@ CutyCapt::saveSnapshot() {
       break;
     }
 #if QT_VERSION < 0x050000
-    case RenderTreeFormat:
+    case RenderTreeFormat: {
       QFile file(mOutput);
       file.open(QIODevice::WriteOnly | QIODevice::Text);
       QTextStream s(&file);
