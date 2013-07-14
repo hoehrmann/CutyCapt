@@ -45,7 +45,8 @@ public:
            OutputFormat format,
            const QString& scriptProp,
            const QString& scriptCode,
-           bool insecure);
+           bool insecure,
+           bool smooth);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -70,4 +71,5 @@ protected:
   QString      mScriptProp;
   QString      mScriptCode;
   bool         mInsecure;
+  bool         mSmooth;
 };

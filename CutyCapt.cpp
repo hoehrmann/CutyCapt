@@ -161,11 +161,13 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 // TODO: Consider merging some of main() and CutyCap
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
-                   const QString& scriptProp, const QString& scriptCode, bool insecure) {
+                   const QString& scriptProp, const QString& scriptCode, bool insecure,
+                   bool smooth) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
   mInsecure = insecure;
+  mSmooth = smooth;
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
@@ -311,6 +313,14 @@ CutyCapt::saveSnapshot() {
     default: {
       QImage image(mPage->viewportSize(), QImage::Format_ARGB32);
       painter.begin(&image);
+#if QT_VERSION >= 0x050000
+      if (mSmooth) {
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setRenderHint(QPainter::TextAntialiasing);
+        painter.setRenderHint(QPainter::HighQualityAntialiasing);
+      }
+#endif
       mainFrame->render(&painter);
       painter.end();
       // TODO: add quality
@@ -363,6 +373,9 @@ CaptHelp(void) {
     "  --expect-alert=<string>        Try waiting for alert(string) before capture \n"
     "  --debug-print-alerts           Prints out alert(...) strings for debugging. \n"
 #endif
+#if QT_VERSION >= 0x050000
+    "  --smooth                       Attempt to enable Qt's high-quality settings.\n"
+#endif
     "  --insecure                     Ignore SSL/TLS certificate errors            \n"
     " -----------------------------------------------------------------------------\n"
     "  <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm    \n"
@@ -393,7 +406,8 @@ main(int argc, char *argv[]) {
   int argMinHeight = 600;
   int argMaxWait = 90000;
   int argVerbosity = 0;
-  
+  int argSmooth = 0;
+
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
   const char* argUserStylePath = NULL;
@@ -437,6 +451,12 @@ main(int argc, char *argv[]) {
     } else if (strcmp("--insecure", s) == 0) {
       argInsecure = 1;
       continue;
+
+#if QT_VERSION >= 0x050000
+    } else if (strcmp("--smooth", s) == 0) {
+      argSmooth = 1;
+      continue;
+#endif
 
 #if CUTYCAPT_SCRIPT
     } else if (strcmp("--debug-print-alerts", s) == 0) {
@@ -630,7 +650,8 @@ main(int argc, char *argv[]) {
     }
   }
 
-  CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode, !!argInsecure);
+  CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
+                !!argInsecure, !!argSmooth);
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),
