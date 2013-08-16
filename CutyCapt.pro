@@ -2,6 +2,8 @@ QT       +=  webkit svg network
 SOURCES   =  CutyCapt.cpp
 HEADERS   =  CutyCapt.hpp
 CONFIG   +=  qt console
+target.path = /usr/local/bin/
+INSTALLS += target
 
 greaterThan(QT_MAJOR_VERSION, 4): {
   QT       +=  webkitwidgets
