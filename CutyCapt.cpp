@@ -162,12 +162,15 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
-                   bool smooth) {
+                   bool smooth, int pageWidth, int pageHeight, QRectF margins) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
   mInsecure = insecure;
   mSmooth = smooth;
+  mPageWidth = pageWidth;
+  mPageHeight = pageHeight;
+  mMargins = margins;
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
@@ -283,7 +286,14 @@ CutyCapt::saveSnapshot() {
     case PdfFormat:
     case PsFormat: {
       QPrinter printer;
-      printer.setPageSize(QPrinter::A4);
+	  if (mPageWidth != 0 && mPageHeight != 0) {
+		printer.setPaperSize(QSizeF(mPageWidth, mPageHeight), QPrinter::Point);
+	  } else {
+		printer.setPageSize(QPrinter::A4);
+	  }      
+      if (mMargins.left() >= 0 && mMargins.top() >= 0 && mMargins.right() >= 0 && mMargins.bottom() >= 0) {
+		printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
+	  }      
       printer.setOutputFileName(mOutput);
       // TODO: change quality here?
       mainFrame->print(&printer);
@@ -361,6 +371,12 @@ CaptHelp(void) {
     "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
     "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
+    "  --page-width=<pts>             Sets the page width in points (default: A4 width)\n"
+    "  --page-height=<pts>            Sets the page height in points (default: A4 height)\n"
+    "  --margin-left=<pts>            Sets the left margin in points (default: unknown)\n"
+    "  --margin-top=<pts>             Sets the top margin in points (default: unknown)\n"
+    "  --margin-bottom=<pts           Sets the right margin in points (default: unknown)\n"
+    "  --margin-right=<pts>           Sets the bottom margin in points (default: unknown)\n"
 #if QT_VERSION >= 0x040500
     "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
     "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
@@ -407,6 +423,12 @@ main(int argc, char *argv[]) {
   int argMaxWait = 90000;
   int argVerbosity = 0;
   int argSmooth = 0;
+  int argPageWidth = 0;
+  int argPageHeight = 0;
+  int argMarginLeft = -1;
+  int argMarginTop = -1;
+  int argMarginRight = -1;
+  int argMarginBottom = -1;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -494,6 +516,30 @@ main(int argc, char *argv[]) {
     } else if (strncmp("--max-wait", s, nlen) == 0) {
       // TODO: see above
       argMaxWait = (unsigned int)atoi(value);
+
+    } else if (strncmp("--page-width", s, nlen) == 0) {
+      // TODO: see above
+      argPageWidth = (unsigned int)atoi(value);
+
+    } else if (strncmp("--page-height", s, nlen) == 0) {
+      // TODO: see above
+      argPageHeight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-left", s, nlen) == 0) {
+      // TODO: see above
+      argMarginLeft = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-top", s, nlen) == 0) {
+      // TODO: see above
+      argMarginTop = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-right", s, nlen) == 0) {
+      // TODO: see above
+      argMarginRight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-bottom", s, nlen) == 0) {
+      // TODO: see above
+      argMarginBottom = (unsigned int)atoi(value);
 
     } else if (strncmp("--out", s, nlen) == 0) {
       argOut = value;
@@ -651,7 +697,8 @@ main(int argc, char *argv[]) {
   }
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
-                !!argInsecure, !!argSmooth);
+                !!argInsecure, !!argSmooth, argPageWidth, argPageHeight,
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom));
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),

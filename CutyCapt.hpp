@@ -1,4 +1,5 @@
 #include <QtWebKit>
+#include <QRectF>
 
 #if QT_VERSION >= 0x050000
 #include <QtWebKitWidgets>
@@ -46,7 +47,10 @@ public:
            const QString& scriptProp,
            const QString& scriptCode,
            bool insecure,
-           bool smooth);
+           bool smooth,
+		   int pageWidth,
+		   int pageHeight,
+           QRectF margins);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -72,4 +76,7 @@ protected:
   QString      mScriptCode;
   bool         mInsecure;
   bool         mSmooth;
+  int          mPageWidth;
+  int          mPageHeight;
+  QRectF       mMargins;
 };
