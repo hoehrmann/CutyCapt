@@ -12,3 +12,8 @@ contains(CONFIG, static): {
   DEFINES  += STATIC_PLUGINS
 }
 
+mac {
+  QMAKE_CXXFLAGS += -fvisibility=hidden
+  QMAKE_LFLAGS += '-sectcreate __TEXT __info_plist Info.plist'
+  CONFIG   -= app_bundle
+}
