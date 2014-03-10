@@ -87,7 +87,7 @@ void CutyNetworkAccessManager::setAllowRemoteResources(bool allowRemoteResources
 QNetworkReply * CutyNetworkAccessManager::createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
   if (req.url().scheme() != "file" && !mAllowRemoteResources) {		
     QNetworkRequest adjusted = req;
-    adjusted.setUrl(QUrl("about:invalid"));
+    adjusted.setUrl(QUrl("data:"));
     return QNetworkAccessManager::createRequest(op, adjusted, outgoingData);
   }
 
