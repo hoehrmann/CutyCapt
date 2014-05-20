@@ -43,6 +43,7 @@ public:
            const QString& output,
            int delay,
            OutputFormat format,
+           int mOutQuality,
            const QString& scriptProp,
            const QString& scriptCode,
            bool insecure,
@@ -67,6 +68,7 @@ protected:
   int          mDelay;
   CutyPage*    mPage;
   OutputFormat mFormat;
+  int          mOutQuality;
   QObject*     mScriptObj;
   QString      mScriptProp;
   QString      mScriptCode;
