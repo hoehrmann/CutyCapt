@@ -313,6 +313,12 @@ CutyCapt::saveSnapshot() {
 		printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
 	  }      
       printer.setOutputFileName(mOutput);
+#ifdef Q_WS_MACX
+      if (mFormat == PdfFormat) {
+        // Set the output format to native on Mac OSX otherwise the PDF text isn't selectable
+        printer.setOutputFormat(QPrinter::NativeFormat);
+      }
+#endif
       // TODO: change quality here?
       mainFrame->print(&printer);
       break;
