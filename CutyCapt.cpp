@@ -26,7 +26,9 @@
 #include <QApplication>
 #include <QtWebKit>
 #include <QtGui>
+#ifndef QT_NO_SVG
 #include <QSvgGenerator>
+#endif
 
 #if QT_VERSION < 0x050000
 #include <QPrinter>
@@ -46,7 +48,9 @@
   Q_IMPORT_PLUGIN(qjpeg)
   Q_IMPORT_PLUGIN(qgif)
   Q_IMPORT_PLUGIN(qtiff)
+#ifndef QT_NO_SVG
   Q_IMPORT_PLUGIN(qsvg)
+#endif
   Q_IMPORT_PLUGIN(qmng)
   Q_IMPORT_PLUGIN(qico)
 #endif
@@ -56,7 +60,9 @@ static struct _CutyExtMap {
   const char* extension;
   const char* identifier;
 } const CutyExtMap[] = {
+#ifndef QT_NO_SVG
   { CutyCapt::SvgFormat,         ".svg",        "svg"   },
+#endif
   { CutyCapt::PdfFormat,         ".pdf",        "pdf"   },
   { CutyCapt::PsFormat,          ".ps",         "ps"    },
   { CutyCapt::InnerTextFormat,   ".txt",        "itext" },
@@ -75,6 +81,24 @@ static struct _CutyExtMap {
   { CutyCapt::XpmFormat,         ".xpm",        "xpm"   },
   { CutyCapt::OtherFormat,       "",            ""      }
 };
+
+CutyNetworkAccessManager::CutyNetworkAccessManager() {
+  mAllowRemoteResources = true;
+}
+
+void CutyNetworkAccessManager::setAllowRemoteResources(bool allowRemoteResources) {
+  mAllowRemoteResources = allowRemoteResources;
+}
+
+QNetworkReply * CutyNetworkAccessManager::createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
+  if (req.url().scheme() != "file" && req.url().scheme() != "data" && !mAllowRemoteResources) {
+    QNetworkRequest adjusted = req;
+    adjusted.setUrl(QUrl("data:,"));
+    return QNetworkAccessManager::createRequest(op, adjusted, outgoingData);
+  }
+
+  return QNetworkAccessManager::createRequest(op, req, outgoingData);
+}
 
 QString
 CutyPage::chooseFile(QWebFrame* /*frame*/, const QString& /*suggestedFile*/) {
@@ -162,12 +186,15 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
-                   bool smooth) {
+                   bool smooth, int pageWidth, int pageHeight, QRectF margins) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
   mInsecure = insecure;
   mSmooth = smooth;
+  mPageWidth = pageWidth;
+  mPageHeight = pageHeight;
+  mMargins = margins;
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
@@ -271,6 +298,7 @@ CutyCapt::saveSnapshot() {
   mPage->setViewportSize( mainFrame->contentsSize() );
 
   switch (mFormat) {
+#ifndef QT_NO_SVG
     case SvgFormat: {
       QSvgGenerator svg;
       svg.setFileName(mOutput);
@@ -280,11 +308,25 @@ CutyCapt::saveSnapshot() {
       painter.end();
       break;
     }
+#endif
     case PdfFormat:
     case PsFormat: {
       QPrinter printer;
-      printer.setPageSize(QPrinter::A4);
+      if (mPageWidth != 0 && mPageHeight != 0) {
+        printer.setPaperSize(QSizeF(mPageWidth, mPageHeight), QPrinter::Point);
+      } else {
+        printer.setPageSize(QPrinter::A4);
+      }      
+      if (mMargins.left() >= 0 && mMargins.top() >= 0 && mMargins.right() >= 0 && mMargins.bottom() >= 0) {
+        printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
+      }
       printer.setOutputFileName(mOutput);
+#ifdef Q_WS_MACX
+      if (mFormat == PdfFormat) {
+        // Set the output format to native on Mac OSX otherwise the PDF text isn't selectable
+        printer.setOutputFormat(QPrinter::NativeFormat);
+      }
+#endif
       // TODO: change quality here?
       mainFrame->print(&printer);
       break;
@@ -359,8 +401,15 @@ CaptHelp(void) {
     "  --plugins=<on|off>             Plugin execution (default: unknown)          \n"
     "  --private-browsing=<on|off>    Private browsing (default: unknown)          \n"
     "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
+    "  --allow-remote-resources=<on|off> Allow loading remote resources (default: on)n"
     "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
+    "  --page-width=<pts>             Sets the page width in points (default: A4 width)\n"
+    "  --page-height=<pts>            Sets the page height in points (default: A4 height)\n"
+    "  --margin-left=<pts>            Sets the left margin in points (default: unknown)\n"
+    "  --margin-top=<pts>             Sets the top margin in points (default: unknown)\n"
+    "  --margin-bottom=<pts           Sets the right margin in points (default: unknown)\n"
+    "  --margin-right=<pts>           Sets the bottom margin in points (default: unknown)\n"
 #if QT_VERSION >= 0x040500
     "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
     "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
@@ -407,6 +456,12 @@ main(int argc, char *argv[]) {
   int argMaxWait = 90000;
   int argVerbosity = 0;
   int argSmooth = 0;
+  int argPageWidth = 0;
+  int argPageHeight = 0;
+  int argMarginLeft = -1;
+  int argMarginTop = -1;
+  int argMarginRight = -1;
+  int argMarginBottom = -1;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -421,12 +476,14 @@ main(int argc, char *argv[]) {
 
   QApplication app(argc, argv, true);
   CutyPage page;
-
+  
   QNetworkAccessManager::Operation method =
     QNetworkAccessManager::GetOperation;
   QByteArray body;
   QNetworkRequest req;
-  QNetworkAccessManager manager;
+  CutyNetworkAccessManager manager;
+  
+  page.setNetworkAccessManager(&manager);
 
   // Parse command line parameters
   for (int ax = 1; ax < argc; ++ax) {
@@ -495,6 +552,30 @@ main(int argc, char *argv[]) {
       // TODO: see above
       argMaxWait = (unsigned int)atoi(value);
 
+    } else if (strncmp("--page-width", s, nlen) == 0) {
+      // TODO: see above
+      argPageWidth = (unsigned int)atoi(value);
+
+    } else if (strncmp("--page-height", s, nlen) == 0) {
+      // TODO: see above
+      argPageHeight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-left", s, nlen) == 0) {
+      // TODO: see above
+      argMarginLeft = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-top", s, nlen) == 0) {
+      // TODO: see above
+      argMarginTop = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-right", s, nlen) == 0) {
+      // TODO: see above
+      argMarginRight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-bottom", s, nlen) == 0) {
+      // TODO: see above
+      argMarginBottom = (unsigned int)atoi(value);
+
     } else if (strncmp("--out", s, nlen) == 0) {
       argOut = value;
 
@@ -518,6 +599,13 @@ main(int argc, char *argv[]) {
 
     } else if (strncmp("--auto-load-images", s, nlen) == 0) {
       page.setAttribute(QWebSettings::AutoLoadImages, value);
+
+    }  else if (strncmp("--allow-remote-resources", s, nlen) == 0) {
+      if (strcmp("on", value) == 0) {
+        manager.setAllowRemoteResources(true);
+      } else if (strcmp("off", value) == 0) {
+        manager.setAllowRemoteResources(false);
+      }
 
     } else if (strncmp("--javascript", s, nlen) == 0) {
       page.setAttribute(QWebSettings::JavascriptEnabled, value);
@@ -558,7 +646,6 @@ main(int argc, char *argv[]) {
       QNetworkProxy proxy = QNetworkProxy(QNetworkProxy::HttpProxy,
         p.host(), p.port(80), p.userName(), p.password());
       manager.setProxy(proxy);
-      page.setNetworkAccessManager(&manager);
 #endif
 
 #if CUTYCAPT_SCRIPT
@@ -651,7 +738,8 @@ main(int argc, char *argv[]) {
   }
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
-                !!argInsecure, !!argSmooth);
+                !!argInsecure, !!argSmooth, argPageWidth, argPageHeight,
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom));
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),

@@ -1,8 +1,21 @@
 #include <QtWebKit>
+#include <QRectF>
 
 #if QT_VERSION >= 0x050000
 #include <QtWebKitWidgets>
 #endif
+
+class CutyNetworkAccessManager : public QNetworkAccessManager {
+  Q_OBJECT
+
+public:
+  CutyNetworkAccessManager();
+  void setAllowRemoteResources(bool allowRemoteResources);
+  QNetworkReply * createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData = 0);
+
+protected:
+  bool mAllowRemoteResources;
+};
 
 class CutyCapt;
 class CutyPage : public QWebPage {
@@ -46,7 +59,10 @@ public:
            const QString& scriptProp,
            const QString& scriptCode,
            bool insecure,
-           bool smooth);
+           bool smooth,
+		   int pageWidth,
+		   int pageHeight,
+           QRectF margins);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -72,4 +88,7 @@ protected:
   QString      mScriptCode;
   bool         mInsecure;
   bool         mSmooth;
+  int          mPageWidth;
+  int          mPageHeight;
+  QRectF       mMargins;
 };
