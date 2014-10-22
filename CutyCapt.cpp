@@ -87,7 +87,7 @@ void CutyNetworkAccessManager::setAllowRemoteResources(bool allowRemoteResources
 QNetworkReply * CutyNetworkAccessManager::createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
   if (req.url().scheme() != "file" && req.url().scheme() != "data" && !mAllowRemoteResources) {
     QNetworkRequest adjusted = req;
-    adjusted.setUrl(QUrl("data:"));
+    adjusted.setUrl(QUrl("data:,"));
     return QNetworkAccessManager::createRequest(op, adjusted, outgoingData);
   }
 
@@ -304,15 +304,21 @@ CutyCapt::saveSnapshot() {
     case PdfFormat:
     case PsFormat: {
       QPrinter printer;
-	  if (mPageWidth != 0 && mPageHeight != 0) {
-		printer.setPaperSize(QSizeF(mPageWidth, mPageHeight), QPrinter::Point);
-	  } else {
-		printer.setPageSize(QPrinter::A4);
-	  }      
+      if (mPageWidth != 0 && mPageHeight != 0) {
+        printer.setPaperSize(QSizeF(mPageWidth, mPageHeight), QPrinter::Point);
+      } else {
+        printer.setPageSize(QPrinter::A4);
+      }      
       if (mMargins.left() >= 0 && mMargins.top() >= 0 && mMargins.right() >= 0 && mMargins.bottom() >= 0) {
-		printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
-	  }      
+        printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
+      }
       printer.setOutputFileName(mOutput);
+#ifdef Q_WS_MACX
+      if (mFormat == PdfFormat) {
+        // Set the output format to native on Mac OSX otherwise the PDF text isn't selectable
+        printer.setOutputFormat(QPrinter::NativeFormat);
+      }
+#endif
       // TODO: change quality here?
       mainFrame->print(&printer);
       break;
