@@ -27,10 +27,7 @@
 #include <QtWebKit>
 #include <QtGui>
 #include <QSvgGenerator>
-
-#if QT_VERSION < 0x050000
 #include <QPrinter>
-#endif
 
 #include <QTimer>
 #include <QByteArray>
