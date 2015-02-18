@@ -4,7 +4,7 @@ HEADERS   =  CutyCapt.hpp
 CONFIG   +=  qt console
 
 greaterThan(QT_MAJOR_VERSION, 4): {
-  QT       +=  webkitwidgets
+  QT       +=  webkitwidgets printsupport
 }
 
 contains(CONFIG, static): {

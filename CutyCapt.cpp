@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////
 //
 // CutyCapt - A Qt WebKit Web Page Rendering Capture Utility
 //
@@ -16,7 +16,7 @@
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // $Id$
@@ -27,10 +27,7 @@
 #include <QtWebKit>
 #include <QtGui>
 #include <QSvgGenerator>
-
-#if QT_VERSION < 0x050000
 #include <QPrinter>
-#endif
 
 #include <QTimer>
 #include <QByteArray>
@@ -56,24 +53,24 @@ static struct _CutyExtMap {
   const char* extension;
   const char* identifier;
 } const CutyExtMap[] = {
-  { CutyCapt::SvgFormat,         ".svg",        "svg"   },
-  { CutyCapt::PdfFormat,         ".pdf",        "pdf"   },
-  { CutyCapt::PsFormat,          ".ps",         "ps"    },
-  { CutyCapt::InnerTextFormat,   ".txt",        "itext" },
-  { CutyCapt::HtmlFormat,        ".html",       "html"  },
+  { CutyCapt::SvgFormat, ".svg", "svg" },
+  { CutyCapt::PdfFormat, ".pdf", "pdf" },
+  { CutyCapt::PsFormat, ".ps", "ps" },
+  { CutyCapt::InnerTextFormat, ".txt", "itext" },
+  { CutyCapt::HtmlFormat, ".html", "html" },
 #if QT_VERSION < 0x050000
-  { CutyCapt::RenderTreeFormat,  ".rtree",      "rtree" },
+  { CutyCapt::RenderTreeFormat, ".rtree", "rtree" },
 #endif
-  { CutyCapt::JpegFormat,        ".jpeg",       "jpeg"  },
-  { CutyCapt::PngFormat,         ".png",        "png"   },
-  { CutyCapt::MngFormat,         ".mng",        "mng"   },
-  { CutyCapt::TiffFormat,        ".tiff",       "tiff"  },
-  { CutyCapt::GifFormat,         ".gif",        "gif"   },
-  { CutyCapt::BmpFormat,         ".bmp",        "bmp"   },
-  { CutyCapt::PpmFormat,         ".ppm",        "ppm"   },
-  { CutyCapt::XbmFormat,         ".xbm",        "xbm"   },
-  { CutyCapt::XpmFormat,         ".xpm",        "xpm"   },
-  { CutyCapt::OtherFormat,       "",            ""      }
+  { CutyCapt::JpegFormat, ".jpeg", "jpeg" },
+  { CutyCapt::PngFormat, ".png", "png" },
+  { CutyCapt::MngFormat, ".mng", "mng" },
+  { CutyCapt::TiffFormat, ".tiff", "tiff" },
+  { CutyCapt::GifFormat, ".gif", "gif" },
+  { CutyCapt::BmpFormat, ".bmp", "bmp" },
+  { CutyCapt::PpmFormat, ".ppm", "ppm" },
+  { CutyCapt::XbmFormat, ".xbm", "xbm" },
+  { CutyCapt::XpmFormat, ".xpm", "xpm" },
+  { CutyCapt::OtherFormat, "", "" }
 };
 
 QString
@@ -161,6 +158,7 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 // TODO: Consider merging some of main() and CutyCap
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
+				   int OutQuality,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
                    bool smooth) {
   mPage = page;
@@ -171,6 +169,7 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
+  mOutQuality = OutQuality;
   mScriptProp = scriptProp;
   mScriptCode = scriptCode;
   mScriptObj = new QObject();
@@ -305,8 +304,8 @@ CutyCapt::saveSnapshot() {
       file.open(QIODevice::WriteOnly | QIODevice::Text);
       QTextStream s(&file);
       s.setCodec("utf-8");
-      s << (mFormat == InnerTextFormat  ? mainFrame->toPlainText() :
-            mFormat == HtmlFormat       ? mainFrame->toHtml() :
+      s << (mFormat == InnerTextFormat ? mainFrame->toPlainText() :
+            mFormat == HtmlFormat ? mainFrame->toHtml() :
             "bug");
       break;
     }
@@ -323,8 +322,8 @@ CutyCapt::saveSnapshot() {
 #endif
       mainFrame->render(&painter);
       painter.end();
-      // TODO: add quality
-      image.save(mOutput, format);
+      //
+      image.save(mOutput, format, mOutQuality);
     }
   };
 }
@@ -333,52 +332,52 @@ void
 CaptHelp(void) {
   printf("%s",
     " -----------------------------------------------------------------------------\n"
-    " Usage: CutyCapt --url=http://www.example.org/ --out=localfile.png            \n"
+    " Usage: CutyCapt --url=http://www.example.org/ --out=localfile.png \n"
     " -----------------------------------------------------------------------------\n"
-    "  --help                         Print this help page and exit                \n"
-    "  --url=<url>                    The URL to capture (http:...|file:...|...)   \n"
-    "  --out=<path>                   The target file (.png|pdf|ps|svg|jpeg|...)   \n"
-    "  --out-format=<f>               Like extension in --out, overrides heuristic \n"
-//  "  --out-quality=<int>            Output format quality from 1 to 100          \n"
-    "  --min-width=<int>              Minimal width for the image (default: 800)   \n"
-    "  --min-height=<int>             Minimal height for the image (default: 600)  \n"
-    "  --max-wait=<ms>                Don't wait more than (default: 90000, inf: 0)\n"
-    "  --delay=<ms>                   After successful load, wait (default: 0)     \n"
-//  "  --user-styles=<url>            Location of user style sheet (deprecated)    \n"
-    "  --user-style-path=<path>       Location of user style sheet file, if any    \n"
-    "  --user-style-string=<css>      User style rules specified as text           \n"
-    "  --header=<name>:<value>        request header; repeatable; some can't be set\n"
-    "  --method=<get|post|put>        Specifies the request method (default: get)  \n"
-    "  --body-string=<string>         Unencoded request body (default: none)       \n"
-    "  --body-base64=<base64>         Base64-encoded request body (default: none)  \n"
-    "  --app-name=<name>              appName used in User-Agent; default is none  \n"
-    "  --app-version=<version>        appVers used in User-Agent; default is none  \n"
-    "  --user-agent=<string>          Override the User-Agent header Qt would set  \n"
-    "  --javascript=<on|off>          JavaScript execution (default: on)           \n"
-    "  --java=<on|off>                Java execution (default: unknown)            \n"
-    "  --plugins=<on|off>             Plugin execution (default: unknown)          \n"
-    "  --private-browsing=<on|off>    Private browsing (default: unknown)          \n"
-    "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
-    "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
-    "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
+    " --help Print this help page and exit \n"
+    " --url=<url> The URL to capture (http:...|file:...|...) \n"
+    " --out=<path> The target file (.png|pdf|ps|svg|jpeg|...) \n"
+    " --out-format=<f> Like extension in --out, overrides heuristic \n"
+    " --image-save-quality=<int> Output format quality from 1 to 100 (default: 75) \n"
+    " --min-width=<int> Minimal width for the image (default: 800) \n"
+    " --min-height=<int> Minimal height for the image (default: 600) \n"
+    " --max-wait=<ms> Don't wait more than (default: 90000, inf: 0)\n"
+    " --delay=<ms> After successful load, wait (default: 0) \n"
+// " --user-styles=<url> Location of user style sheet (deprecated) \n"
+    " --user-style-path=<path> Location of user style sheet file, if any \n"
+    " --user-style-string=<css> User style rules specified as text \n"
+    " --header=<name>:<value> request header; repeatable; some can't be set\n"
+    " --method=<get|post|put> Specifies the request method (default: get) \n"
+    " --body-string=<string> Unencoded request body (default: none) \n"
+    " --body-base64=<base64> Base64-encoded request body (default: none) \n"
+    " --app-name=<name> appName used in User-Agent; default is none \n"
+    " --app-version=<version> appVers used in User-Agent; default is none \n"
+    " --user-agent=<string> Override the User-Agent header Qt would set \n"
+    " --javascript=<on|off> JavaScript execution (default: on) \n"
+    " --java=<on|off> Java execution (default: unknown) \n"
+    " --plugins=<on|off> Plugin execution (default: unknown) \n"
+    " --private-browsing=<on|off> Private browsing (default: unknown) \n"
+    " --auto-load-images=<on|off> Automatic image loading (default: on) \n"
+    " --js-can-open-windows=<on|off> Script can open windows? (default: unknown) \n"
+    " --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
 #if QT_VERSION >= 0x040500
-    "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
-    "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
-    "  --zoom-text-only=<on|off>      Whether to zoom only the text (default: off) \n"
-    "  --http-proxy=<url>             Address for HTTP proxy server (default: none)\n"
+    " --print-backgrounds=<on|off> Backgrounds in PDF/PS output (default: off) \n"
+    " --zoom-factor=<float> Page zoom factor (default: no zooming) \n"
+    " --zoom-text-only=<on|off> Whether to zoom only the text (default: off) \n"
+    " --http-proxy=<url> Address for HTTP proxy server (default: none)\n"
 #endif
 #if CUTYCAPT_SCRIPT
-    "  --inject-script=<path>         JavaScript that will be injected into pages  \n"
-    "  --script-object=<string>       Property to hold state for injected script   \n"
-    "  --expect-alert=<string>        Try waiting for alert(string) before capture \n"
-    "  --debug-print-alerts           Prints out alert(...) strings for debugging. \n"
+    " --inject-script=<path> JavaScript that will be injected into pages \n"
+    " --script-object=<string> Property to hold state for injected script \n"
+    " --expect-alert=<string> Try waiting for alert(string) before capture \n"
+    " --debug-print-alerts Prints out alert(...) strings for debugging. \n"
 #endif
 #if QT_VERSION >= 0x050000
-    "  --smooth                       Attempt to enable Qt's high-quality settings.\n"
+    " --smooth Attempt to enable Qt's high-quality settings.\n"
 #endif
-    "  --insecure                     Ignore SSL/TLS certificate errors            \n"
+    " --insecure Ignore SSL/TLS certificate errors \n"
     " -----------------------------------------------------------------------------\n"
-    "  <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm    \n"
+    " <f> is svg,ps,pdf,itext,html,rtree,png,jpeg,mng,tiff,gif,bmp,ppm,xbm,xpm \n"
     " -----------------------------------------------------------------------------\n"
 #if CUTYCAPT_SCRIPT
     " The `inject-script` option can be used to inject script code into loaded web \n"
@@ -402,6 +401,7 @@ main(int argc, char *argv[]) {
   int argDelay = 0;
   int argSilent = 0;
   int argInsecure = 0;
+  int argOutQuality = 75;
   int argMinWidth = 800;
   int argMinHeight = 600;
   int argMaxWait = 90000;
@@ -463,7 +463,7 @@ main(int argc, char *argv[]) {
       page.setPrintAlerts(true);
       continue;
 #endif
-    } 
+    }
 
     value = strchr(s, '=');
 
@@ -478,6 +478,14 @@ main(int argc, char *argv[]) {
     // --name=value options
     if (strncmp("--url", s, nlen) == 0) {
       argUrl = value;
+
+    } else if (strncmp("--image-save-quality", s, nlen) == 0) {
+	  int nArgValue = atoi(value);
+	  if( 1 <= nArgValue && 100 >= nArgValue )
+		argOutQuality = nArgValue;
+	  else
+		argOutQuality = 75;
+		
 
     } else if (strncmp("--min-width", s, nlen) == 0) {
       // TODO: add error checking here?
@@ -618,7 +626,7 @@ main(int argc, char *argv[]) {
         method = QNetworkAccessManager::PostOperation;
       else if (strcmp("value", "head") == 0)
         method = QNetworkAccessManager::HeadOperation;
-      else 
+      else
         (void)0; // TODO: ...
 
     } else {
@@ -650,7 +658,7 @@ main(int argc, char *argv[]) {
     }
   }
 
-  CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
+  CutyCapt main(&page, argOut, argDelay, format, argOutQuality, scriptProp, scriptCode,
                 !!argInsecure, !!argSmooth);
 
   app.connect(&page,
