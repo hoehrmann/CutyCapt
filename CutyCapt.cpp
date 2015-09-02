@@ -610,13 +610,13 @@ main(int argc, char *argv[]) {
       req.setRawHeader(QByteArray(value, hv - value), hv + 1);
 
     } else if (strncmp("--method", s, nlen) == 0) {
-      if (strcmp("value", "get") == 0)
+      if (strcmp(value, "get") == 0)
         method = QNetworkAccessManager::GetOperation;
-      else if (strcmp("value", "put") == 0)
+      else if (strcmp(value, "put") == 0)
         method = QNetworkAccessManager::PutOperation;
-      else if (strcmp("value", "post") == 0)
+      else if (strcmp(value, "post") == 0)
         method = QNetworkAccessManager::PostOperation;
-      else if (strcmp("value", "head") == 0)
+      else if (strcmp(value, "head") == 0)
         method = QNetworkAccessManager::HeadOperation;
       else 
         (void)0; // TODO: ...
