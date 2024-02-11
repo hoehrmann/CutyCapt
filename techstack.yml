@@ -1,0 +1,31 @@
+repo_name: hakanai/CutyCapt
+report_id: 14d939518fc3e7b37eee37790d3ed37a
+version: 0.1
+repo_type: Public
+timestamp: '2024-02-11T01:33:58+00:00'
+requested_by: hakanai
+provider: github
+branch: master
+detected_tools_count: 2
+tools:
+- name: C++
+  description: Has imperative, object-oriented and generic programming features, while
+    also providing the facilities for low level memory manipulation
+  website_url: http://www.cplusplus.com/
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/1049/cplusplus.png
+  detection_source_url: https://github.com/hakanai/CutyCapt
+  detection_source: Repo Metadata
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source_url: https://github.com/hakanai/CutyCapt
+  detection_source: Repo Metadata
